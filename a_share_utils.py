@@ -114,9 +114,41 @@ def getCSVDumpFileName ( preceding_days: int = 30 ) -> str:
 	return str ( date ) + '-' + str ( preceding_days ) + 'D-Hist-Ashares.csv'
 
 
+def all_rows_in_last_X_business_days ( df: pd.DataFrame , preceding_days: int = 30 ) -> bool:
+	"""
+	Check whether all rows in a DataFrame fall within the most recent 30 business days.
+	Args:
+		df (pd.DataFrame): DataFrame to check.
+
+	Returns:
+		bool: True if all rows fall within the most recent 30 business days, False otherwise.
+	"""
+	# Define the start and end dates of the desired data range.
+	end_date = datetime.datetime.now ()
+	start_date = end_date - datetime.timedelta ( days = preceding_days )
+
+	# Create a mask to filter the DataFrame based on the date range.
+	mask = (df [ 'date' ] >= start_date) & (df [ 'date' ] <= end_date) & (df [ 'date' ].dt.dayofweek < 5)
+
+	# Check whether all rows satisfy the mask.
+	return mask.all ()
+
+
+def getCurrentBJTime ():
+	SHA_TZ = datetime.timezone (
+		datetime.timedelta ( hours = 8 ) ,
+		name = 'Asia/Shanghai' ,
+		)
+	utc_now = datetime.datetime.utcnow ().replace ( tzinfo = datetime.timezone.utc )
+	beijing_now = utc_now.astimezone ( SHA_TZ )
+	print ( beijing_now.date () , beijing_now.tzname () )
+	return beijing_now.date ()
+
+
 def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 	"""
-	Get the daily trading data for all A share stocks.
+	Get the historical daily trading data for all A share stocks.
+	SHOULD Exclude current trading day e.g. running SOD before market open
 
 	Parameters:
 	start_date (str): The start date of the data to retrieve (in the format 'YYYY-MM-DD').
@@ -128,6 +160,9 @@ def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 	pandas.DataFrame: A DataFrame containing the daily trading data for all A share stocks.
 	"""
 
+	dt = getCurrentBJTime ()
+	if dt.weekday () <= 5:
+		assert dt.hour () <= 8
 	# Get the list of A share symbols
 	stock_pool: Mapping [ str , Mapping ] = get_stock_pool_today ()
 	symbols: List = stock_pool.keys ()
@@ -140,7 +175,7 @@ def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 		df = get_price ( symbol , frequency = '1d' , count = preceding_days + 1 )
 		df [ 'code' ] = symbol
 		df [ 'date' ] = df.index
-		if df is not None:
+		if df is not None & all_rows_in_last_X_business_days ( df , preceding_days + 10 ):
 			dfs.append ( df )
 
 	# Combine the data for all A share stocks into a single DataFrame
@@ -152,6 +187,38 @@ def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 		return a_share_data
 
 	return None
+
+
+def pick_stocks ( df: pd.DataFrame , volumeSpikeMultiplier: int = 10 , peaceRange: float = 0.05 , preceding_days: int = 30 ) -> List:
+	"""
+	Identify stocks that meet the following criteria:
+		1. Today's trading volume is 10 times the previous 29 days' trading volume average.
+		2. For the previous 29 days, each and every day's volume falls in +-5% of the 29-day's volume's average.
+
+	Args:
+		df (pd.DataFrame): DataFrame containing open, high, low, volume data for 100 stocks for the past 30 days.
+
+	Returns:
+		pd.Series: Series containing the tickers of the stocks that meet the criteria.
+	"""
+	# Calculate the 29-day moving average of each stock's trading volume.
+	df [ 'volume_mean' ] = df.groupby ( 'code' ) [ 'volume' ].transform ( lambda x: x.rolling ( window = preceding_days ).mean () )
+
+	# Calculate today's trading volume for each stock.
+	df [ 'today_volume' ] = df.groupby ( 'code' ) [ 'volume' ].transform ( lambda x: x.iloc [ -1 ] )
+
+	# Filter the DataFrame to include only the most recent day's data.
+	today_df = df [ df [ 'date' ] == df [ 'date' ].max () ]
+
+	# Identify stocks that meet the criteria.
+	criteria1 = today_df [ 'today_volume' ] > 10 * today_df [ 'volume_mean' ]
+	criteria2 = (today_df [ 'today_volume' ] >= today_df [ 'volume_mean' ] * 0.95) & (
+			today_df [ 'today_volume' ] <= today_df [ 'volume_mean' ] * 1.05)
+	criteria2 = criteria2.groupby ( today_df [ 'ticker' ] ).all ()
+	criteria = criteria1 & criteria2
+	selected_tickers = today_df.loc [ criteria , 'ticker' ].tolist ()
+
+	return selected_tickers
 
 
 def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_level: int = 10 , max_percent_change: float = 0.3 ) -> List [ str ]:
@@ -169,8 +236,8 @@ def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_le
 	"""
 
 	# Get the daily trading volume for all A share stocks
-	# a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days )
-	a_share_data: pd.DataFrame = pd.read_csv ( getCSVDumpFileName ( preceding_days ) )
+	a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days )
+	# a_share_data: pd.DataFrame = pd.read_csv ( getCSVDumpFileName ( preceding_days ) )
 	volume_data = a_share_data.pivot_table ( index = 'date' , columns = 'code' , values = 'volume' , aggfunc = 'mean' )
 
 	# Calculate the trading volume change over the preceding days
@@ -213,8 +280,10 @@ if __name__ == '__main__':
 	{'name': '平安银行', 'code': 'sz000001', 'now': 12.82, 'close': 12.9, 'open': 12.85, 'volume': 62151900.0, 'bid_volume': 27364500, 'ask_volume': 34787400.0, 'bid1': 12.81, 'bid1_volume': 170500, 'bid2': 12.8, 'bid2_volume': 322100, 'bid3': 12.79, 'bid3_volume': 397500, 'bid4': 12.78, 'bid4_volume': 832200, 'bid5': 12.77, 'bid5_volume': 598300, 'ask1': 12.82, 'ask1_volume': 67600, 'ask2': 12.83, 'ask2_volume': 353200, 'ask3': 12.84, 'ask3_volume': 298200, 'ask4': 12.85, 'ask4_volume': 399400, 'ask5': 12.86, 'ask5_volume': 449500, '最近逐笔成交': '', 'datetime': datetime.datetime(2023, 3, 24, 16, 14, 3), '涨跌': -0.08, '涨跌(%)': -0.62, 'high': 12.86, 'low': 12.76, '价格/成交量(手)/成交额': '12.82/621519/796319542', '成交量(手)': 62151900, '成交额(万)': 796320000.0, 'turnover': 0.32, 'PE': 5.47, 'unknown': '', 'high_2': 12.86, 'low_2': 12.76, '振幅': 0.78, '流通市值': 2487.79, '总市值': 2487.84, 'PB': 0.68, '涨停价': 14.19, '跌停价': 11.61, '量比': 0.59, '委差': 7527.0, '均价': 12.81, '市盈(动)': 5.47, '市盈(静)': 5.47}
 	"""
 	# sz000003, sz0000015, sz000047, sz000013, sz000405, sz000412, sz000406, sz000024
-	df = get_price ( 'sz000003' , end_date = '2023-03-01' , frequency = '1d' , count = 30 )
-	print ( '深市日线行情\n' , df )
+	# df = get_price ( 'sz000003' , end_date = '2023-03-01' , frequency = '1d' , count = 30 )
+	# df [ 'date' ] = df.index
+	# val = all_rows_in_last_X_business_days ( df , 30 )
+	# print ( '深市日线行情\n' , df )
 	#
 	# df = get_price ( '000001.XSHG' , frequency = '15m' , count = 10 )
 	# print ( '上证指数分钟线\n' , df )
