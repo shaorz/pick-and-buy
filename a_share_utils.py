@@ -111,7 +111,7 @@ def get_price ( code: str , end_date: str = '' , count: int = 10 , frequency: st
 
 def getCSVDumpFileName ( preceding_days: int = 30 ) -> str:
 	date = datetime.date.today ()
-	return str ( date ) + '-' + preceding_days + 'D-Hist-Ashares.csv'
+	return str ( date ) + '-' + str ( preceding_days ) + 'D-Hist-Ashares.csv'
 
 
 def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
@@ -171,7 +171,7 @@ def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_le
 	# Get the daily trading volume for all A share stocks
 	# a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days )
 	a_share_data: pd.DataFrame = pd.read_csv ( getCSVDumpFileName ( preceding_days ) )
-	volume_data = a_share_data.pivot ( index = 'date' , columns = 'code' , values = 'volume' )
+	volume_data = a_share_data.pivot_table ( index = 'date' , columns = 'code' , values = 'volume' , aggfunc = 'mean' )
 
 	# Calculate the trading volume change over the preceding days
 	preceding_days_volume = volume_data.tail ( preceding_days + 1 ).mean ()
@@ -212,9 +212,9 @@ if __name__ == '__main__':
 	"""
 	{'name': '平安银行', 'code': 'sz000001', 'now': 12.82, 'close': 12.9, 'open': 12.85, 'volume': 62151900.0, 'bid_volume': 27364500, 'ask_volume': 34787400.0, 'bid1': 12.81, 'bid1_volume': 170500, 'bid2': 12.8, 'bid2_volume': 322100, 'bid3': 12.79, 'bid3_volume': 397500, 'bid4': 12.78, 'bid4_volume': 832200, 'bid5': 12.77, 'bid5_volume': 598300, 'ask1': 12.82, 'ask1_volume': 67600, 'ask2': 12.83, 'ask2_volume': 353200, 'ask3': 12.84, 'ask3_volume': 298200, 'ask4': 12.85, 'ask4_volume': 399400, 'ask5': 12.86, 'ask5_volume': 449500, '最近逐笔成交': '', 'datetime': datetime.datetime(2023, 3, 24, 16, 14, 3), '涨跌': -0.08, '涨跌(%)': -0.62, 'high': 12.86, 'low': 12.76, '价格/成交量(手)/成交额': '12.82/621519/796319542', '成交量(手)': 62151900, '成交额(万)': 796320000.0, 'turnover': 0.32, 'PE': 5.47, 'unknown': '', 'high_2': 12.86, 'low_2': 12.76, '振幅': 0.78, '流通市值': 2487.79, '总市值': 2487.84, 'PB': 0.68, '涨停价': 14.19, '跌停价': 11.61, '量比': 0.59, '委差': 7527.0, '均价': 12.81, '市盈(动)': 5.47, '市盈(静)': 5.47}
 	"""
-	#
-	# df = get_price ( 'sz000001' , frequency = '1d' , count = 30 )
-	# print ( '深市日线行情\n' , df )
+	# sz000003, sz0000015, sz000047, sz000013, sz000405, sz000412, sz000406, sz000024
+	df = get_price ( 'sz000003' , end_date = '2023-03-01' , frequency = '1d' , count = 30 )
+	print ( '深市日线行情\n' , df )
 	#
 	# df = get_price ( '000001.XSHG' , frequency = '15m' , count = 10 )
 	# print ( '上证指数分钟线\n' , df )
