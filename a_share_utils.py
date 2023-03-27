@@ -119,7 +119,7 @@ def all_rows_in_last_X_business_days ( df: pd.DataFrame , preceding_days: int = 
 	Check whether all rows in a DataFrame fall within the most recent 30 business days.
 	Args:
 		df (pd.DataFrame): DataFrame to check.
-
+		preceding_days: previous days to check
 	Returns:
 		bool: True if all rows fall within the most recent 30 business days, False otherwise.
 	"""
@@ -134,15 +134,15 @@ def all_rows_in_last_X_business_days ( df: pd.DataFrame , preceding_days: int = 
 	return mask.all ()
 
 
-def getCurrentBJTime ():
+def getCurrentBJTime () -> datetime.datetime:
 	SHA_TZ = datetime.timezone (
 		datetime.timedelta ( hours = 8 ) ,
 		name = 'Asia/Shanghai' ,
 		)
 	utc_now = datetime.datetime.utcnow ().replace ( tzinfo = datetime.timezone.utc )
 	beijing_now = utc_now.astimezone ( SHA_TZ )
-	print ( beijing_now.date () , beijing_now.tzname () )
-	return beijing_now.date ()
+	print ( beijing_now , beijing_now.tzname () )
+	return beijing_now
 
 
 def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
@@ -161,8 +161,11 @@ def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 	"""
 
 	dt = getCurrentBJTime ()
-	if dt.weekday () <= 5:
-		assert dt.hour () <= 8
+	if dt.date ().weekday () <= 5:
+		print ( "Checking current time, and it will be too late to start on weekdays' morning after 8 AM" )
+	# assert dt.hour <= 8
+	time_sec = time.time ()
+
 	# Get the list of A share symbols
 	stock_pool: Mapping [ str , Mapping ] = get_stock_pool_today ()
 	symbols: List = stock_pool.keys ()
@@ -170,14 +173,20 @@ def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 
 	# Get the daily trading data for each A share stock
 	dfs = [ ]
+	invalid_tickers = [ ]
 	for i , symbol in enumerate ( symbols ):
 		pbar.update ( int ( i / len ( symbols ) * 100 ) )
-		df = get_price ( symbol , frequency = '1d' , count = preceding_days + 1 )
-		df [ 'code' ] = symbol
-		df [ 'date' ] = df.index
-		if df is not None & all_rows_in_last_X_business_days ( df , preceding_days + 10 ):
-			dfs.append ( df )
+		if i < 100:
+			df = get_price ( symbol , frequency = '1d' , count = preceding_days + 1 )
+			df [ 'code' ] = symbol
+			df [ 'date' ] = df.index
+			if df is not None and all_rows_in_last_X_business_days ( df , preceding_days + 25 ):
+				dfs.append ( df )
+			else:
+				invalid_tickers.append ( symbol )
 
+	print ( "\n Time in seconds since the epoch:" , time.time () - time_sec )
+	print ( "Today's invalid tickers are: " + invalid_tickers )
 	# Combine the data for all A share stocks into a single DataFrame
 	if dfs:
 		a_share_data = pd.concat ( dfs )
@@ -185,7 +194,6 @@ def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
 		a_share_data = a_share_data [ [ 'date' , 'code' , 'open' , 'high' , 'low' , 'close' , 'volume' ] ]
 		a_share_data.to_csv ( getCSVDumpFileName ( preceding_days ) )
 		return a_share_data
-
 	return None
 
 
@@ -202,7 +210,7 @@ def pick_stocks ( df: pd.DataFrame , volumeSpikeMultiplier: int = 10 , peaceRang
 		pd.Series: Series containing the tickers of the stocks that meet the criteria.
 	"""
 	# Calculate the 29-day moving average of each stock's trading volume.
-	df [ 'volume_mean' ] = df.groupby ( 'code' ) [ 'volume' ].transform ( lambda x: x.rolling ( window = preceding_days ).mean () )
+	df [ 'volume_mean' ] = df.groupby ( 'code' ) [ 'volume' ].mean ()  # .transform ( lambda x: x.rolling ( window = preceding_days ).mean () )
 
 	# Calculate today's trading volume for each stock.
 	df [ 'today_volume' ] = df.groupby ( 'code' ) [ 'volume' ].transform ( lambda x: x.iloc [ -1 ] )
