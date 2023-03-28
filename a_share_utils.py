@@ -128,7 +128,24 @@ def all_rows_in_last_X_business_days ( df: pd.DataFrame , preceding_days: int = 
 	start_date = end_date - datetime.timedelta ( days = preceding_days )
 
 	# Create a mask to filter the DataFrame based on the date range.
-	mask = (df [ 'date' ] >= start_date) & (df [ 'date' ] <= end_date) & (df [ 'date' ].dt.dayofweek < 5)
+	mask = ( df [ 'date' ] >= start_date ) & ( df [ 'date' ] <= end_date ) & ( df [ 'date' ].dt.dayofweek < 5 )
+
+	# Check whether all rows satisfy the mask.
+	return mask.all ()
+
+
+def all_volume_falls_within_peace_range ( df: pd.DataFrame , peace_level: float = 0.05 ) -> bool:
+	"""
+	Check whether all rows in a DataFrame have volume within peace volume range ( volume_avg * 1.05, volume_avg * .95, )
+	Args:
+		df (pd.DataFrame): DataFrame to check.
+		peace_level: peaceful level to check
+	Returns:
+		bool: True if all rows have volume within peace volume range ( volume_avg * 1.05, volume_avg * .95, )
+	"""
+	
+	# Create a mask to filter the DataFrame based on the date range.
+	mask = ( df [ 'volume' ] >= df [ 'volume_avg' ] * ( 1 - peace_level ) ) & ( df [ 'volume' ] <= df [ 'volume_avg' ] * ( 1 + peace_level ) ) 
 
 	# Check whether all rows satisfy the mask.
 	return mask.all ()
@@ -143,58 +160,6 @@ def getCurrentBJTime () -> datetime.datetime:
 	beijing_now = utc_now.astimezone ( SHA_TZ )
 	print ( beijing_now , beijing_now.tzname () )
 	return beijing_now
-
-
-def get_a_share_hist_data ( preceding_days: int = 30 ) -> pd.DataFrame:
-	"""
-	Get the historical daily trading data for all A share stocks.
-	SHOULD Exclude current trading day e.g. running SOD before market open
-
-	Parameters:
-	start_date (str): The start date of the data to retrieve (in the format 'YYYY-MM-DD').
-					  If not specified, defaults to the earliest available date.
-	end_date (str): The end date of the data to retrieve (in the format 'YYYY-MM-DD').
-					If not specified, defaults to the latest available date.
-
-	Returns:
-	pandas.DataFrame: A DataFrame containing the daily trading data for all A share stocks.
-	"""
-
-	dt = getCurrentBJTime ()
-	if dt.date ().weekday () <= 5:
-		print ( "Checking current time, and it will be too late to start on weekdays' morning after 8 AM" )
-	# assert dt.hour <= 8
-	time_sec = time.time ()
-
-	# Get the list of A share symbols
-	stock_pool: Mapping [ str , Mapping ] = get_stock_pool_today ()
-	symbols: List = stock_pool.keys ()
-	pbar = ProgressBar ().start ()
-
-	# Get the daily trading data for each A share stock
-	dfs = [ ]
-	invalid_tickers = [ ]
-	for i , symbol in enumerate ( symbols ):
-		pbar.update ( int ( i / len ( symbols ) * 100 ) )
-		if i < 100:
-			df = get_price ( symbol , frequency = '1d' , count = preceding_days + 1 )
-			df [ 'code' ] = symbol
-			df [ 'date' ] = df.index
-			if df is not None and all_rows_in_last_X_business_days ( df , preceding_days + 25 ):
-				dfs.append ( df )
-			else:
-				invalid_tickers.append ( symbol )
-
-	print ( "\n Time in seconds since the epoch:" , time.time () - time_sec )
-	print ( "Today's invalid tickers are: " + invalid_tickers )
-	# Combine the data for all A share stocks into a single DataFrame
-	if dfs:
-		a_share_data = pd.concat ( dfs )
-		a_share_data.reset_index ( inplace = True )
-		a_share_data = a_share_data [ [ 'date' , 'code' , 'open' , 'high' , 'low' , 'close' , 'volume' ] ]
-		a_share_data.to_csv ( getCSVDumpFileName ( preceding_days ) )
-		return a_share_data
-	return None
 
 
 def pick_stocks ( df: pd.DataFrame , volumeSpikeMultiplier: int = 10 , peaceRange: float = 0.05 , preceding_days: int = 30 ) -> List:
@@ -229,7 +194,61 @@ def pick_stocks ( df: pd.DataFrame , volumeSpikeMultiplier: int = 10 , peaceRang
 	return selected_tickers
 
 
-def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_level: int = 10 , max_percent_change: float = 0.3 ) -> List [ str ]:
+def get_a_share_hist_data ( preceding_days: int = 30, peace_level: float = 0.05 ) -> pd.DataFrame:
+	"""
+	Get the historical daily trading data for all A share stocks.
+	SHOULD Exclude current trading day e.g. running SOD before market open
+
+	Parameters:
+	start_date (str): The start date of the data to retrieve (in the format 'YYYY-MM-DD').
+					  If not specified, defaults to the earliest available date.
+	end_date (str): The end date of the data to retrieve (in the format 'YYYY-MM-DD').
+					If not specified, defaults to the latest available date.
+
+	Returns:
+	pandas.DataFrame: A DataFrame containing the daily trading data for all A share stocks.
+	"""
+
+	dt = getCurrentBJTime ()
+	if dt.date ().weekday () <= 5:
+		print ( "Checking current time, and it will be too late to start on weekdays' morning after 8 AM" )
+	# assert dt.hour <= 8
+	time_sec = time.time ()
+
+	# Get the list of A share symbols
+	stock_pool: Mapping [ str , Mapping ] = get_stock_pool_today ()
+	symbols: List = stock_pool.keys ()
+	pbar = ProgressBar ().start ()
+
+	# Get the daily trading data for each A share stock
+	dfs = [ ]
+	invalid_tickers = [ ]
+	for i , symbol in enumerate ( symbols ):
+		pbar.update ( int ( i / len ( symbols ) * 100 ) )
+		df = get_price ( symbol , frequency = '1d' , count = preceding_days + 1 )
+		df [ 'code' ] = symbol
+		df [ 'date' ] = df.index
+		df [ 'volume_avg' ] = df.volume.mean()
+		df [ 'peace' ] = all_volume_falls_within_peace_range ( df, peace_level ) 
+		if df is not None and all_rows_in_last_X_business_days ( df , preceding_days + 25 ):
+			dfs.append ( df )
+		else:
+			invalid_tickers.append ( symbol )
+
+	print ( "\n Time in seconds since the epoch:" , time.time () - time_sec )
+	print ( "Today's invalid tickers are: " + invalid_tickers )
+	# Combine the data for all A share stocks into a single DataFrame
+	if dfs:
+		a_share_data = pd.concat ( dfs )
+		a_share_data.reset_index ( inplace = True )
+		a_share_data = a_share_data [ [ 'date' , 'code' , 'open' , 'high' , 'low' , 'close' , 'volume' ] ]
+		a_share_data.to_csv ( getCSVDumpFileName ( preceding_days ) )
+		return a_share_data
+	return None
+
+
+
+def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_level: int = 10 , peace_level: float = 0.05 ) -> List [ str ]:
 	"""
 	Filter the top stocks whose trading volume suddenly spikes compared with the preceding trading volume.
 
@@ -237,15 +256,18 @@ def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_le
 		stock_pool (dict): A dictionary containing the A-share stock pool, with keys representing the stock ticker and values representing the stock info.
 		preceding_days (int): The number of preceding days to compare trading volumes.
 		multiplier_level (int): The multiplier level of the trading volume spike.
-		max_percent_change (float): The maximum percentage change allowed in preceding days' trading volume.
+		peace_level (float): The maximum percentage change allowed in preceding days' trading volume.
 
 	Returns:
 		List[str]: A list of the top stock tickers that meet the trading volume spike criteria.
 	"""
 
 	# Get the daily trading volume for all A share stocks
-	a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days )
+	a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days, peace_level = peace_level )
 	# a_share_data: pd.DataFrame = pd.read_csv ( getCSVDumpFileName ( preceding_days ) )
+
+	avg_volume_data = a_share_data.pivot ( index = 'date' , columns = 'code' , values = 'volume_avg' )
+	peace_stock_data = a_share_data.pivot ( index = 'date' , columns = 'code' , values = 'peace' )
 	volume_data = a_share_data.pivot_table ( index = 'date' , columns = 'code' , values = 'volume' , aggfunc = 'mean' )
 
 	# Calculate the trading volume change over the preceding days
