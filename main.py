@@ -1,6 +1,7 @@
 # import easytrader
 import a_share_utils
-import PySimpleGUI as sg
+from tkinter import *
+
 
 
 def start_app( ):
@@ -9,36 +10,31 @@ def start_app( ):
     # user.prepare ( 'path/to/ht.json' )
 
     df = a_share_utils.get_stock_pool_today()
+    
+    t = Tk()
+    t.geometry("600x600")
+    t.title("Stock Picker")
+    fileOptions = ["New", "open", "Save", "Save as"]
+    fileOptionsAfterseparator = ["Import", "Export", "Exit"]
+    viewOptions = ["Transform", "Edit", "Create"]
+    menuBar = Menu(t)
+    file = Menu(menuBar, tearoff=0)
 
+    for i in fileOptions:
+        file.add_command(label=i, command=None)
+    file.add_separator()
 
-    # Define the GUI layout
-    layout = [
-        [ sg.Text ( 'Stock Picker' ) ] ,
-        [ sg.Text ( 'Stock Code' ) , sg.InputText () ] ,
-        [ sg.Text ( 'Quantity' ) , sg.InputText () ] ,
-        [ sg.Button ( 'Subscribe' ) , sg.Button ( 'Exit' ) ]
-        ]
+    for i in fileOptionsAfterseparator:
+        file.add_command(label=i, command=None)
+    menuBar.add_cascade(label="File", menu=file)
 
-    # Create the GUI window
-    window = sg.Window ( 'IPO Subscription' , layout )
-
-    # Loop to handle events
-    while True:
-        event , values = window.read ()
-
-        # Exit if the user closes the window or clicks the Exit button
-        if event == sg.WINDOW_CLOSED or event == 'Exit':
-            break
-
-        # Subscribe to the IPO
-        if event == 'Subscribe':
-            stock_code = values [ 0 ]
-            quantity = values [ 1 ]
-            # user.buy ( stock_code , price = 'ipo' , amount = quantity )
-            sg.popup ( f'Subscribed to {stock_code} with {quantity} shares' )
-
-    # Close the window and exit the program
-    window.close ()
+    View = Menu(menuBar, tearoff=0)
+    for i in viewOptions:
+        View.add_command(label=i, command=None)
+    menuBar.add_cascade(label="View", menu=View)
+    t.config(menu=menuBar)   
+    
+    t.mainloop()
 
 
 if __name__ == '__main__':
