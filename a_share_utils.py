@@ -37,8 +37,8 @@ def get_price_day_tx ( code: str , end_date: str = '' , count: int = 10 , freque
 		end_date.split ( ' ' ) [ 0 ]
 	end_date = '' if end_date == datetime.datetime.now ().strftime ( '%Y-%m-%d' ) else end_date
 	URL = f'http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},{unit},,{end_date},{count},qfq'
-	st = json.loads ( requests.get ( URL ).content ) ;
-	ms = 'qfq' + unit ;
+	st = json.loads ( requests.get ( URL ).content )
+	ms = 'qfq' + unit
 	stk = st [ 'data' ] [ code ]
 	buf = stk [ ms ] if ms in stk else stk [ unit ]
 	df = pd.DataFrame ( buf , columns = [ 'time' , 'open' , 'close' , 'high' , 'low' , 'volume' ] )
@@ -53,7 +53,7 @@ def get_price_min_tx ( code: str , end_date: str = None , count: int = 10 , freq
 	if end_date: end_date = end_date.strftime ( '%Y-%m-%d' ) if isinstance ( end_date , datetime.date ) else \
 		end_date.split ( ' ' ) [ 0 ]
 	URL = f'http://ifzq.gtimg.cn/appstock/app/kline/mkline?param={code},m{ts},,{count}'
-	st = json.loads ( requests.get ( URL ).content ) ;
+	st = json.loads ( requests.get ( URL ).content )
 	buf = st [ 'data' ] [ code ] [ 'm' + str ( ts ) ]
 	df = pd.DataFrame ( buf , columns = [ 'time' , 'open' , 'close' , 'high' , 'low' , 'volume' , 'n1' , 'n2' ] )
 	df = df [ [ 'time' , 'open' , 'close' , 'high' , 'low' , 'volume' ] ]
@@ -76,13 +76,13 @@ def get_price_sina ( code: str , end_date: str = '' , count: int = 10 , frequenc
 		count = count + (datetime.datetime.now () - end_date).days // unit  # 结束时间到今天有多少天自然日(肯定 >交易日)
 	# print(code,end_date,count)
 	URL = f'http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={code}&scale={ts}&ma=5&datalen={count}'
-	dstr = json.loads ( requests.get ( URL ).content ) ;
+	dstr = json.loads ( requests.get ( URL ).content )
 	# df=pd.DataFrame(dstr,columns=['day','open','high','low','close','volume'],dtype='float')
 	df = pd.DataFrame ( dstr , columns = [ 'time' , 'open' , 'high' , 'low' , 'close' , 'volume' ] )
-	df [ 'open' ] = df [ 'open' ].astype ( float ) ;
-	df [ 'high' ] = df [ 'high' ].astype ( float ) ;  # 转换数据类型
-	df [ 'low' ] = df [ 'low' ].astype ( float ) ;
-	df [ 'close' ] = df [ 'close' ].astype ( float ) ;
+	df [ 'open' ] = df [ 'open' ].astype ( float )
+	df [ 'high' ] = df [ 'high' ].astype ( float )
+	df [ 'low' ] = df [ 'low' ].astype ( float )
+	df [ 'close' ] = df [ 'close' ].astype ( float )
 	df [ 'volume' ] = df [ 'volume' ].astype ( float )
 	df.time = pd.to_datetime ( df.time )
 	df.set_index ( [ 'time' ] , inplace = True )
@@ -128,13 +128,13 @@ def all_rows_in_last_X_business_days ( df: pd.DataFrame , preceding_days: int = 
 	start_date = end_date - datetime.timedelta ( days = preceding_days )
 
 	# Create a mask to filter the DataFrame based on the date range.
-	mask = ( df [ 'date' ] >= start_date ) & ( df [ 'date' ] <= end_date ) & ( df [ 'date' ].dt.dayofweek < 5 )
+	mask = (df [ 'date' ] >= start_date) & (df [ 'date' ] <= end_date) & (df [ 'date' ].dt.dayofweek < 5)
 
 	# Check whether all rows satisfy the mask.
 	return mask.all ()
 
 
-def all_volume_falls_within_peace_range ( df: pd.DataFrame , peace_level: float = 0.05 ) -> bool:
+def all_volume_falls_within_peace_range ( df: pd.DataFrame , average: float , peace_level: float = 0.05 ) -> bool:
 	"""
 	Check whether all rows in a DataFrame have volume within peace volume range ( volume_avg * 1.05, volume_avg * .95, )
 	Args:
@@ -143,9 +143,9 @@ def all_volume_falls_within_peace_range ( df: pd.DataFrame , peace_level: float 
 	Returns:
 		bool: True if all rows have volume within peace volume range ( volume_avg * 1.05, volume_avg * .95, )
 	"""
-	
+
 	# Create a mask to filter the DataFrame based on the date range.
-	mask = ( df [ 'volume' ] >= df [ 'volume_avg' ] * ( 1 - peace_level ) ) & ( df [ 'volume' ] <= df [ 'volume_avg' ] * ( 1 + peace_level ) ) 
+	mask = (df [ 'volume' ] >= average * (1 - peace_level)) & (df [ 'volume' ] <= average * (1 + peace_level))
 
 	# Check whether all rows satisfy the mask.
 	return mask.all ()
@@ -194,7 +194,7 @@ def pick_stocks ( df: pd.DataFrame , volumeSpikeMultiplier: int = 10 , peaceRang
 	return selected_tickers
 
 
-def get_a_share_hist_data ( preceding_days: int = 30, peace_level: float = 0.05 ) -> pd.DataFrame:
+def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05 ) -> [ pd.DataFrame , pd.DataFrame ]:
 	"""
 	Get the historical daily trading data for all A share stocks.
 	SHOULD Exclude current trading day e.g. running SOD before market open
@@ -222,30 +222,34 @@ def get_a_share_hist_data ( preceding_days: int = 30, peace_level: float = 0.05 
 
 	# Get the daily trading data for each A share stock
 	dfs = [ ]
+	analytics = { }
 	invalid_tickers = [ ]
 	for i , symbol in enumerate ( symbols ):
 		pbar.update ( int ( i / len ( symbols ) * 100 ) )
 		df = get_price ( symbol , frequency = '1d' , count = preceding_days + 1 )
 		df [ 'code' ] = symbol
 		df [ 'date' ] = df.index
-		df [ 'volume_avg' ] = df.volume.mean()
-		df [ 'peace' ] = all_volume_falls_within_peace_range ( df, peace_level ) 
 		if df is not None and all_rows_in_last_X_business_days ( df , preceding_days + 25 ):
 			dfs.append ( df )
+			df.volume = df.volume.astype ( 'float' )
+			volume_avg = df.volume.mean ()
+			peace = all_volume_falls_within_peace_range ( df , volume_avg , peace_level )
+			analytics [ 'symbol' ] = { 'volume_avg': volume_avg , 'peace': peace }
 		else:
 			invalid_tickers.append ( symbol )
 
-	print ( "\n Time in seconds since the epoch:" , time.time () - time_sec )
-	print ( "Today's invalid tickers are: " + invalid_tickers )
+	print ( "\n Time in minutes since the epoch:" , (time.time () - time_sec) / 60 )
+	print ( "Today's invalid tickers are: " , invalid_tickers )
 	# Combine the data for all A share stocks into a single DataFrame
 	if dfs:
 		a_share_data = pd.concat ( dfs )
 		a_share_data.reset_index ( inplace = True )
 		a_share_data = a_share_data [ [ 'date' , 'code' , 'open' , 'high' , 'low' , 'close' , 'volume' ] ]
 		a_share_data.to_csv ( getCSVDumpFileName ( preceding_days ) )
-		return a_share_data
-	return None
-
+		analytics_df = pd.DataFrame ( analytics )
+		analytics_df.to_csv ( "Analytics-" + getCSVDumpFileName ( preceding_days ) )
+		return [ a_share_data , analytics_df ]
+	return [ ]
 
 
 def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_level: int = 10 , peace_level: float = 0.05 ) -> List [ str ]:
@@ -263,7 +267,7 @@ def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_le
 	"""
 
 	# Get the daily trading volume for all A share stocks
-	a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days, peace_level = peace_level )
+	a_share_data: pd.DataFrame = get_a_share_hist_data ( preceding_days = preceding_days , peace_level = peace_level )
 	# a_share_data: pd.DataFrame = pd.read_csv ( getCSVDumpFileName ( preceding_days ) )
 
 	avg_volume_data = a_share_data.pivot ( index = 'date' , columns = 'code' , values = 'volume_avg' )
