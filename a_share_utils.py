@@ -230,11 +230,12 @@ def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05
 		df [ 'code' ] = symbol
 		df [ 'date' ] = df.index
 		if df is not None and all_rows_in_last_X_business_days ( df , preceding_days + 25 ):
-			dfs.append ( df )
+
 			df.volume = df.volume.astype ( 'float' )
 			volume_avg = df.volume.mean ()
 			peace = all_volume_falls_within_peace_range ( df , volume_avg , peace_level )
-			analytics [ 'symbol' ] = { 'volume_avg': volume_avg , 'peace': peace }
+			analytics [ symbol ] = { 'volume_avg': volume_avg , 'peace': peace }
+			dfs.append ( df )
 		else:
 			invalid_tickers.append ( symbol )
 
@@ -250,6 +251,10 @@ def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05
 		analytics_df.to_csv ( "Analytics-" + getCSVDumpFileName ( preceding_days ) )
 		return [ a_share_data , analytics_df ]
 	return [ ]
+
+
+def constructVolumeAnalyticsDF ( hist_data: pd.DataFrame ) -> pd.DataFrame:
+	ret: pd.DataFrame = hist_data.pivot ( index = a )
 
 
 def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_level: int = 10 , peace_level: float = 0.05 ) -> List [ str ]:

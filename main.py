@@ -8,8 +8,11 @@ def start_app ():
 	# Initialize EasyTrader
 	# user = easytrader.use ( 'ths' )
 	# user.prepare ( 'path/to/ht.json' )
+	preceding_days: int = 30
+	peace_level: float = 0.1
 
-	df = a_share_utils.get_stock_pool_today ()
+	a_share_data , volume_benchmark_df = a_share_utils.get_a_share_hist_data ( preceding_days = preceding_days , peace_level = peace_level )
+	mask = (volume_benchmark_df [ 'peace' ])
 
 	t = Tk ()
 	t.geometry ( "600x600" )
