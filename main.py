@@ -9,7 +9,7 @@ def start_app ():
 	# user = easytrader.use ( 'ths' )
 	# user.prepare ( 'path/to/ht.json' )
 	preceding_days: int = 30
-	peace_level: float = 0.1
+	peace_level: float = 0.2
 
 	a_share_data , volume_benchmark_df = a_share_utils.get_a_share_hist_data ( preceding_days = preceding_days , peace_level = peace_level )
 	mask = (volume_benchmark_df [ 'peace' ])

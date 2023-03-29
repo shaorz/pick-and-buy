@@ -253,8 +253,42 @@ def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05
 	return [ ]
 
 
-def constructVolumeAnalyticsDF ( hist_data: pd.DataFrame ) -> pd.DataFrame:
-	ret: pd.DataFrame = hist_data.pivot ( index = a )
+def constructVolumeAnalyticsDF ( hist_data: pd.DataFrame , peace_level: float = 0.05 ) -> pd.DataFrame:
+	"""
+	Constructs a dataframe with columns ['code', 'avg_volume', 'peace'].
+	Each row contains a unique stock code, avg_volume is the average volume for that stock,
+	peace is whether each and every day's trading volume falls within (avg_volume * 0.95, avg_volume * 1.05)
+
+	Parameters:
+	df (pandas.DataFrame): a dataframe with column: ['date', 'code', 'open', 'high', 'low', 'close', 'volume'].
+	Rows are the stock prices for stock code X on date D.
+
+	Returns:
+	pandas.DataFrame: a dataframe with columns ['code', 'avg_volume', 'peace'].
+	"""
+	avg_volume_df = hist_data.groupby ( 'code' ) [ 'volume' ].mean ().reset_index ()
+	avg_volume_df.columns = [ 'code' , 'avg_volume' ]
+
+	volume_range_df = hist_data.groupby ( 'code' ) [ 'volume' ].apply ( lambda x: (
+			(x > x.mean () * (1 - peace_level)) & (x < x.mean () * (1 + peace_level))).all () ).reset_index ()
+	volume_range_df.columns = [ 'code' , 'peace' ]
+
+	result_df = pd.merge ( avg_volume_df , volume_range_df , on = 'code' )
+
+	return result_df
+
+
+def getPeacefulStocks ( df: pd.DataFrame ) -> List:
+	"""
+	Constructs a list of stock codes with 'peace' column value as True in the input dataframe.
+
+	Parameters:
+	df (pandas.DataFrame): a dataframe with columns ['code', 'avg_volume', 'peace'].
+
+	Returns:
+	list: a list of stock codes with 'peace' column value as True.
+	"""
+	return df.loc [ df [ 'peace' ] , 'code' ].tolist ()
 
 
 def filter_top_stocks_by_volume_spike ( preceding_days: int = 30 , multiplier_level: int = 10 , peace_level: float = 0.05 ) -> List [ str ]:
@@ -324,7 +358,10 @@ if __name__ == '__main__':
 	# val = all_rows_in_last_X_business_days ( df , 30 )
 	# print ( '深市日线行情\n' , df )
 	#
-	# df = get_price ( '000001.XSHG' , frequency = '15m' , count = 10 )
-	# print ( '上证指数分钟线\n' , df )
+	df = get_price ( '000001.XSHG' , frequency = '15m' , count = 10 )
+	print ( '上证指数分钟线\n' , df )
 
-	stocks = filter_top_stocks_by_volume_spike ()
+	# stocks = filter_top_stocks_by_volume_spike ()
+	df = constructVolumeAnalyticsDF ( pd.read_csv ( getCSVDumpFileName ( 30 ) ) , peace_level = .2 )
+	arr = getPeacefulStocks ( df )
+	print ( "Valid tickers" , df )
