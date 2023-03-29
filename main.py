@@ -77,7 +77,7 @@ def start_app ( valid_tickers: List ) -> None:
 
 	# Create buttons for each valid stock ticker
 	for ticker in valid_tickers:
-		ticker_button = Button ( ticker_frame , text = ticker , command = lambda ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
+		ticker_button = Button ( ticker_frame , text = ticker , command = lambda t = ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
 		ticker_button.grid ( padx = 5 , pady = 5 , sticky = "w" )
 
 	# 菜单弹出事件
