@@ -7,6 +7,24 @@ import a_share_utils
 
 
 def start_app ( valid_tickers ):
+	# Create a function to open a file dialog
+	def open_file ():
+		file_path = filedialog.askopenfilename ( filetypes = [ ("CSV files" , "*.csv") , ("All Files" , "*.*") ] )
+
+	# TODO: Process the file and update the UI
+
+	# Create a function to save the plot
+	def save_file ():
+		file_path = filedialog.asksaveasfilename ( defaultextension = ".png" , filetypes = [ ("PNG files" , "*.png") , ("All Files" , "*.*") ] )
+
+	# TODO: Save the plot to the file
+
+	# Create a function to show the About dialog
+	def show_about ():
+		about_window = Toplevel ( root )
+		about_window.title ( "About Stock Analytics App" )
+		about_label = Label ( about_window , text = "Stock Analytics App v1.0\n\n© 2023 - All rights reserved" )
+
 	# Initialize the Tkinter application and create a main window
 	root = Tk ()
 	root.title ( "Stock Analytics App" )
@@ -56,26 +74,17 @@ def start_app ( valid_tickers ):
 
 	# Create buttons for each valid stock ticker
 	for ticker in valid_tickers:
-		ticker_button = Button ( ticker_frame , text = ticker , command = lambda t = ticker: plot_ticker ( t ) )
+		ticker_button = Button ( ticker_frame , text = ticker , command = lambda t = ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
 		ticker_button.grid ( padx = 5 , pady = 5 , sticky = "w" )
 
-	# Create a function to open a file dialog
-	def open_file ():
-		file_path = filedialog.askopenfilename ( filetypes = [ ("CSV files" , "*.csv") , ("All Files" , "*.*") ] )
+	# 菜单弹出事件
+	def pop ( event ):
+		menubar.post ( event.x_root , event.y_root )
 
-	# TODO: Process the file and update the UI
-
-	# Create a function to save the plot
-	def save_file ():
-		file_path = filedialog.asksaveasfilename ( defaultextension = ".png" , filetypes = [ ("PNG files" , "*.png") , ("All Files" , "*.*") ] )
-
-	# TODO: Save the plot to the file
-
-	# Create a function to show the About dialog
-	def show_about ():
-		about_window = Toplevel ( root )
-		about_window.title ( "About Stock Analytics App" )
-		about_label = Label ( about_window , text = "Stock Analytics App v1.0\n\n© 2023 - All rights reserved" )
+	for i in [ 'c' , 'java' , 'python' , 'php' ]:
+		menubar.add_command ( label = i )
+	root.bind ( "<Button-3>" , pop )
+	root.mainloop ()
 
 
 if __name__ == '__main__':
