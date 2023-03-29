@@ -2,11 +2,14 @@
 
 from tkinter import *
 from tkinter import filedialog
+from typing import List
+
+import pandas as pd
 
 import a_share_utils
 
 
-def start_app ( valid_tickers ):
+def start_app ( valid_tickers: List ) -> None:
 	# Create a function to open a file dialog
 	def open_file ():
 		file_path = filedialog.askopenfilename ( filetypes = [ ("CSV files" , "*.csv") , ("All Files" , "*.*") ] )
@@ -61,7 +64,7 @@ def start_app ( valid_tickers ):
 	ticker_entry.grid ( row = 0 , column = 1 , padx = 5 , pady = 5 , sticky = "w" )
 
 	# Create a button to add the stock ticker
-	add_button = Button ( ticker_frame , text = "Add" , command = lambda: add_ticker ( ticker_entry.get () ) )
+	add_button = Button ( ticker_frame , text = "Add" , command = lambda: print ( "add_button" ) )  # add_ticker ( ticker_entry.get () )
 	add_button.grid ( row = 0 , column = 2 , padx = 5 , pady = 5 , sticky = "w" )
 
 	# Create a frame for the plot area
@@ -74,15 +77,13 @@ def start_app ( valid_tickers ):
 
 	# Create buttons for each valid stock ticker
 	for ticker in valid_tickers:
-		ticker_button = Button ( ticker_frame , text = ticker , command = lambda t = ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
+		ticker_button = Button ( ticker_frame , text = ticker , command = lambda ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
 		ticker_button.grid ( padx = 5 , pady = 5 , sticky = "w" )
 
 	# 菜单弹出事件
 	def pop ( event ):
 		menubar.post ( event.x_root , event.y_root )
 
-	for i in [ 'c' , 'java' , 'python' , 'php' ]:
-		menubar.add_command ( label = i )
 	root.bind ( "<Button-3>" , pop )
 	root.mainloop ()
 
@@ -90,6 +91,6 @@ def start_app ( valid_tickers ):
 if __name__ == '__main__':
 	preceding_days: int = 30
 	peace_level: float = 0.2
-	a_share_data , volume_benchmark_df = a_share_utils.get_a_share_hist_data ( preceding_days = preceding_days , peace_level = peace_level )
-	peaceTickers = a_share_utils.getPeacefulStocks ( volume_benchmark_df )
-	start_app ( peaceTickers )
+	# a_share_data , volume_benchmark_df = a_share_utils.get_a_share_hist_data ( preceding_days = preceding_days , peace_level = peace_level )
+	peaceTickers = a_share_utils.getPeacefulStocks ( pd.read_csv ( "Analytics-2023-03-29-30D-Hist-Ashares.csv" ) )
+	start_app ( [ 'SZ300033' , 'SZ300778' , 'SZ002911' ] )
