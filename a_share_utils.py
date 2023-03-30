@@ -194,7 +194,7 @@ def pick_stocks ( df: pd.DataFrame , volumeSpikeMultiplier: int = 10 , peaceRang
 	return selected_tickers
 
 
-def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05 ) -> [ pd.DataFrame , pd.DataFrame ]:
+def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05 ) -> pd.DataFrame:
 	"""
 	Get the historical daily trading data for all A share stocks.
 	SHOULD Exclude current trading day e.g. running SOD before market open
@@ -243,10 +243,8 @@ def get_a_share_hist_data ( preceding_days: int = 30 , peace_level: float = 0.05
 		a_share_data.reset_index ( inplace = True )
 		a_share_data = a_share_data [ [ 'date' , 'code' , 'open' , 'high' , 'low' , 'close' , 'volume' ] ]
 		a_share_data.to_csv ( getCSVDumpFileName ( preceding_days ) )
-		analytics_df = constructVolumeAnalyticsDF ( a_share_data )
-		analytics_df.to_csv ( "Analytics-" + getCSVDumpFileName ( preceding_days ) )
-		return [ a_share_data , analytics_df ]
-	return [ ]
+		return a_share_data
+	return None
 
 
 def constructVolumeAnalyticsDF ( hist_data: pd.DataFrame , peace_level: float = 0.05 , spike_multiplier: float = 10 ) -> pd.DataFrame:
@@ -264,13 +262,13 @@ def constructVolumeAnalyticsDF ( hist_data: pd.DataFrame , peace_level: float = 
 	"""
 	avg_volume_df = hist_data.groupby ( 'code' ) [ 'volume' ].mean ().reset_index ()
 	avg_volume_df.columns = [ 'code' , 'avg_volume' ]
-	avg_volume_df [ 'avg_volume' ] = avg_volume_df [ 'avg_volume' ] * spike_multiplier
 
 	volume_range_df = hist_data.groupby ( 'code' ) [ 'volume' ].apply ( lambda x: (
 			(x > x.mean () * (1 - peace_level)) & (x < x.mean () * (1 + peace_level))).all () ).reset_index ()
 	volume_range_df.columns = [ 'code' , 'peace' ]
 
 	result_df = pd.merge ( avg_volume_df , volume_range_df , on = 'code' )
+	result_df [ 'benchmark_volume' ] = result_df [ 'avg_volume' ] * spike_multiplier
 
 	return result_df
 

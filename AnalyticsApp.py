@@ -16,6 +16,7 @@ class StockAnalyticsApp ( tk.Tk ):
 	spike_multiplier: float
 	volume_analytics_df: pd.DataFrame
 	valid_tickers: List
+	frame: Frame
 	peaceScale: Scale = 0.2
 	spikeEntry: Entry = 10
 
@@ -42,25 +43,25 @@ class StockAnalyticsApp ( tk.Tk ):
 		self.config ( menu = menubar )
 
 		# create a frame to hold the scale and the canvas
-		frame = tk.Frame ( self , padx = 10 , pady = 10 )
-		frame.grid ( row = 0 , column = 0 , sticky = "nsew" )
+		self.frame = tk.Frame ( self , padx = 10 , pady = 10 )
+		self.frame.grid ( row = 0 , column = 0 , sticky = "nsew" )
 
-		peace_label = tk.Label ( frame , text = "Select a value for historical peacefulness" )
+		peace_label = tk.Label ( self.frame , text = "Select a value for historical peacefulness" )
 		peace_label.grid ( row = 0 , column = 0 , padx = 5 , pady = 5 , sticky = "w" )
 		# create a horizontal scale and pack it in the middle
-		self.peaceScale = tk.Scale ( frame , orient = 'horizontal' , from_ = 0.0 , to = 1.0 , resolution = 0.01 )
+		self.peaceScale = tk.Scale ( self.frame , orient = 'horizontal' , from_ = 0.0 , to = 1.0 , resolution = 0.01 )
 		self.peaceScale.grid ( row = 0 , column = 1 , padx = 5 , pady = 5 , sticky = "e" )
 
 		# Create a label for the stock ticker entry box
-		ticker_label = Label ( frame , text = "Enter volume shock level:" )
+		ticker_label = Label ( self.frame , text = "Enter volume shock level:" )
 		ticker_label.grid ( row = 1 , column = 0 , padx = 5 , pady = 5 , sticky = "w" )
 
 		# Create an entry box for entering the stock ticker
-		self.spikeEntry = Entry ( frame , width = 10 )
+		self.spikeEntry = Entry ( self.frame , width = 10 )
 		self.spikeEntry.grid ( row = 1 , column = 1 , padx = 5 , pady = 5 , sticky = "e" )
 
 		# Create a button to add the stock ticker
-		add_button = Button ( frame , text = "Start monitoring" , command = self.refreshVolumeAnalyticsDF )  # add_ticker ( ticker_entry.get () )
+		add_button = Button ( self.frame , text = "Start monitoring" , command = self.refreshVolumeAnalyticsDF )  # add_ticker ( ticker_entry.get () )
 		add_button.grid ( row = 1 , column = 2 , padx = 5 , pady = 5 , sticky = "nsew" )
 
 		# Create a frame for the plot area
@@ -69,10 +70,6 @@ class StockAnalyticsApp ( tk.Tk ):
 
 		self.volume_analytics_df = a_share_utils.constructVolumeAnalyticsDF ( self.hist_price_df )
 		self.valid_tickers = a_share_utils.getPeacefulStocks ( self.volume_analytics_df )
-		# Create buttons for each valid stock ticker
-		for ticker in self.valid_tickers:
-			ticker_button = Button ( frame , text = ticker , command = lambda t = ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
-			ticker_button.grid ( padx = 5 , pady = 5 , sticky = "w" )
 
 		# Menu pop up
 		def pop ( event ):
@@ -105,4 +102,8 @@ class StockAnalyticsApp ( tk.Tk ):
 		print ( "spike multiplier:" , self.spike_multiplier )
 		self.volume_analytics_df = a_share_utils.constructVolumeAnalyticsDF ( self.hist_price_df , peace_level = self.peace , spike_multiplier = self.spike_multiplier )
 		self.valid_tickers = a_share_utils.getPeacefulStocks ( self.volume_analytics_df )
-
+		print ( "updated valid stock list" , self.valid_tickers )
+		# Create buttons for each valid stock ticker
+		for ticker in self.valid_tickers:
+			ticker_button = Button ( self.frame , text = ticker , command = lambda t = ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
+			ticker_button.grid ( padx = 5 , pady = 5 , sticky = "w" )
