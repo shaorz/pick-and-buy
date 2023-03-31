@@ -1,5 +1,6 @@
 import tkinter as tk
 from dataclasses import dataclass
+from functools import partial
 from tkinter import *
 from tkinter import filedialog
 from typing import List
@@ -29,14 +30,14 @@ class StockAnalyticsApp ( tk.Tk ):
 		menubar = Menu ( self )
 		# Create a File menu with Open, Save and Exit options
 		file_menu = Menu ( menubar , tearoff = 0 )
-		file_menu.add_command ( label = "Open" , command = self.open_file )
-		file_menu.add_command ( label = "Save" , command = self.save_file )
+		file_menu.add_command ( label = "Open" , command = self.openFile )
+		file_menu.add_command ( label = "Save" , command = self.saveFile )
 		file_menu.add_command ( label = "Exit" , command = self.quit )
 		menubar.add_cascade ( label = "File" , menu = file_menu )
 
 		# Create a Help menu with About option
 		help_menu = Menu ( menubar , tearoff = 0 )
-		help_menu.add_command ( label = "About" , command = self.show_about )
+		help_menu.add_command ( label = "About" , command = self.showAbout )
 		menubar.add_cascade ( label = "Help" , menu = help_menu )
 
 		# Set the menu bar
@@ -52,14 +53,14 @@ class StockAnalyticsApp ( tk.Tk ):
 		self.frame = tk.Frame ( self , padx = 10 , pady = 10 )
 		self.frame.grid ( row = 0 , column = 0 , sticky = "nsew" )
 
-		peace_label = tk.Label ( self.frame , text = "Select a value for historical peacefulness" )
+		peace_label = tk.Label ( self.frame , text = "Select a value for historical peacefulness" , bg = '#4C5C74' )
 		peace_label.grid ( row = 0 , column = 0 , padx = 5 , pady = 5 , sticky = "w" )
 		# create a horizontal scale and pack it in the middle
 		self.peaceScale = tk.Scale ( self.frame , orient = 'horizontal' , from_ = 0.0 , to = 1.0 , resolution = 0.01 )
 		self.peaceScale.grid ( row = 0 , column = 1 , padx = 5 , pady = 5 , sticky = "e" )
 
 		# Create a label for the stock ticker entry box
-		ticker_label = Label ( self.frame , text = "Enter volume shock level:" )
+		ticker_label = Label ( self.frame , text = "Enter volume shock level:" , bg = '#4C5C74' )
 		ticker_label.grid ( row = 1 , column = 0 , padx = 5 , pady = 5 , sticky = "w" )
 
 		# Create an entry box for entering the stock ticker
@@ -67,7 +68,7 @@ class StockAnalyticsApp ( tk.Tk ):
 		self.spikeEntry.grid ( row = 1 , column = 1 , padx = 5 , pady = 5 , sticky = "e" )
 
 		# Create a button to add the stock ticker
-		add_button = Button ( self.frame , text = "Start monitoring" , command = self.refreshVolumeAnalyticsDF )  
+		add_button = Button ( self.frame , text = "Start monitoring" , command = self.refreshVolumeAnalyticsDF , bg = '#4C5C74' )
 		add_button.grid ( row = 1 , column = 2 , padx = 5 , pady = 5 , sticky = "nsew" )
 
 		# Create a frame for the plot area
@@ -75,46 +76,57 @@ class StockAnalyticsApp ( tk.Tk ):
 		self.plot_frame.grid ( row = 1 , column = 0 , sticky = "nsew" )
 		self.refreshVolumeAnalyticsDF ()
 
-		
-		
-
-	def open_file ( self ):
+	def openFile ( self ):
 		file_path = filedialog.askopenfilename ( filetypes = [ ("CSV files" , "*.csv") , ("All Files" , "*.*") ] )
 
 	# TODO: Process the file and update the UI
 
 	# Create a function to save the plot
-	def save_file ( self ):
+	def saveFile ( self ):
 		file_path = filedialog.asksaveasfilename ( defaultextension = ".png" , filetypes = [ ("PNG files" , "*.png") , ("All Files" , "*.*") ] )
 
 	# TODO: Save the plot to the file
 
 	# Create a function to show the About dialog
-	def show_about ( self ):
+	def showAbout ( self ):
 		about_window = Toplevel ( self )
 		about_window.title ( "About Stock Analytics App" )
-		about_window.geometry ( "500x500" )
-		about_label = Label ( about_window , text = "Stock Analytics App v1.0\n\n\n\nDesktop application to faciliate volume-chasing trades" )
+		about_window.geometry ( "350x150" )
+		about_label = Label ( about_window , text = "Stock Analytics App v1.0" )
 		about_label.grid ( row = 0 , column = 0 , sticky = "nsew" )
-		
-		author_label = Label ( about_window , text = "Designed by RogerSF\n\n\n\n\n\n© 2023 - All rights reserved" )
-		author_label.grid ( row = 1 , column = 0 , sticky = "nsew" )
+		content_label = Label ( about_window , text = "Desktop application to facilitate volume-chasing trades.\n\n" )
+		content_label.grid ( row = 1 , column = 0 , sticky = "w" )
+		author_label = Label ( about_window , text = "Designed by RogerSF\n\n© 2023 - All rights reserved" )
+		author_label.grid ( row = 2 , column = 0 , sticky = "e" )
+
+	def showTickerBenchmark ( self , ticker: str ):
+		ticker_window = Toplevel ( self )
+		ticker_window.title ( ticker + " Volume Analsis" )
+		ticker_window.geometry ( "400x150" )
+		ticker_row = self.volume_analytics_df.loc [ self.volume_analytics_df [ 'code' ] == ticker ]
+		about_label = Label ( ticker_window , text = str ( ticker_row ) )
+		about_label.grid ( row = 0 , column = 0 , sticky = "nsew" )
 
 	def refreshVolumeAnalyticsDF ( self ):
 		self.peace = self.peaceScale.get ()
-		self.spike_multiplier = float ( self.spikeEntry.get () )
+
+		try:
+			self.spike_multiplier = float ( self.spikeEntry.get () )
+		except Exception:
+			self.spike_multiplier = 10
+
 		print ( "Refresh volume parameter peace:" , self.peace )
 		print ( "spike multiplier:" , self.spike_multiplier )
 		self.volume_analytics_df = a_share_utils.constructVolumeAnalyticsDF ( self.hist_price_df , peace_level = self.peace , spike_multiplier = self.spike_multiplier )
 		self.valid_tickers = a_share_utils.getPeacefulStocks ( self.volume_analytics_df )
 		print ( "updated valid stock list" , self.valid_tickers )
-		
+
 		# Create buttons for each valid stock ticker
 		for widget in self.plot_frame.winfo_children ():
-			widget.destroy()
-			
-		for i, ticker in enumerate ( self.valid_tickers ):
-			r: int = int( i / 7 )
-			col: int = int( i % 7 )
-			ticker_button: Button = Button ( self.plot_frame , text = ticker , command = lambda t = ticker: print ( ticker ) )  # lambda t = ticker: plot_ticker ( t )
-			ticker_button.grid ( row = r , column = col ,  padx = 5 , pady = 5 , sticky = "w" )
+			widget.destroy ()
+
+		for i , ticker in enumerate ( self.valid_tickers ):
+			r: int = int ( i / 10 )
+			col: int = int ( i % 10 )
+			ticker_button: Button = Button ( self.plot_frame , text = ticker , command = partial ( self.showTickerBenchmark , ticker ) , bg = '#4C5C74' )
+			ticker_button.grid ( row = r , column = col , padx = 5 , pady = 5 , sticky = "w" )
