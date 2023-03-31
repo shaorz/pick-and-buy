@@ -93,6 +93,7 @@ class StockAnalyticsApp ( tk.Tk ):
 	def show_about ( self ):
 		about_window = Toplevel ( self )
 		about_window.title ( "About Stock Analytics App" )
+		about_window.geometry ( "500x500" )
 		about_label = Label ( about_window , text = "Stock Analytics App v1.0\n\n\n\nDesktop application to faciliate volume-chasing trades" )
 		about_label.grid ( row = 0 , column = 0 , sticky = "nsew" )
 		
